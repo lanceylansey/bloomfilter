@@ -3,10 +3,11 @@ from contextlib import closing
 import multiprocessing
 import socket
 import sqlite3
+import base64
 from time import perf_counter
 from .protocol import Channel
 from .worker import serve
-from .strategies import FilterSize, choose_filter_size
+from .strategies import FilterSize, choose_filter_size, BloomFilter
 
 
 PROJECTION = "SELECT l.join_key, l.payload, r.payload FROM records l JOIN incoming r ON l.join_key = r.join_key ORDER BY l.join_key"
@@ -24,8 +25,8 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False):
 
     collect_sizing does not apply a filter or change the full-transfer strategy.
     """
-    if strategy != "full":
-        raise NotImplementedError("Bloom strategies are starter issues; only full currently runs")
+    if strategy not in ("full", "bloom"):
+        raise ValueError(f"Unknown strategy: {strategy!r}")
     context = multiprocessing.get_context("spawn")
     with socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
@@ -41,7 +42,8 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False):
                 db.execute("CREATE TEMP TABLE incoming (join_key INTEGER PRIMARY KEY, payload TEXT NOT NULL)")
                 start = perf_counter()
                 sizing = None
-                if collect_sizing:
+                size = FilterSize(0, 0)
+                if collect_sizing or strategy == "bloom":
                     before_metadata = channel.bytes_sent + channel.bytes_received
                     channel.send({"request": "sizing"})
                     remote_stats = channel.receive()["sizing"]
@@ -57,7 +59,22 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False):
                               "bit_count": size.bit_count, "hash_count": size.hash_count,
                               "metadata_application_bytes": metadata_bytes,
                               "filter_applied": False}
-                channel.send({"strategy": strategy})
+                request = {"strategy": "full"}
+                filter_seconds = 0.0
+                filter_bytes = 0
+                if strategy == "bloom" and size.bit_count:
+                    built = perf_counter()
+                    bloom = BloomFilter(size.bit_count, size.hash_count)
+                    for (key,) in db.execute("SELECT join_key FROM records"):
+                        bloom.add(key)
+                    data = bloom.to_bytes()
+                    filter_seconds = perf_counter() - built
+                    filter_bytes = len(data)
+                    request = {"strategy": "bloom", "bit_count": size.bit_count,
+                               "hash_count": size.hash_count,
+                               "filter": base64.b64encode(data).decode("ascii")}
+                    sizing["filter_applied"] = True
+                channel.send(request)
                 transferred = 0
                 while True:
                     message = channel.receive()
