@@ -23,11 +23,12 @@ class BloomFilter:
         if bits is None:
             self._bits = bytearray(nbytes)
         else:
-            if len(bits) != nbytes
+            if len(bits) != nbytes:
                 raise ValueError("bits length does not match bit_count")
             self._bits = bytearray(bits)
 
     def _positions(self, key):
+        # Stable hashes so local and remote processes agree (never use hash()).
         raw = str(key).encode("utf-8")
         digest = hashlib.sha256(raw).digest()
         h1 = int.from_bytes(digest[0:8], "big")
@@ -36,19 +37,26 @@ class BloomFilter:
 
     def add(self, key):
         for p in self._positions(key):
-            self._bits[p // 8] |= (1 << (p % 8))
+            self._bits[p // 8] |= 1 << (p % 8)
 
     def might_contain(self, key):
         for p in self._positions(key):
-            if (self._bits[p // 8] |= (1 << (p % 8))) == 0:
+            if (self._bits[p // 8] & (1 << (p % 8))) == 0:
                 return False
         return True
 
     def to_bytes(self):
         return bytes(self._bits)
 
+    @classmethod
+    def from_bytes(cls, bit_count, hash_count, data):
+        return cls(bit_count, hash_count, bits=data)
+
     def intersection(self, other):
-        raise NotImplementedError
+        if self.bit_count != other.bit_count or self.hash_count != other.hash_count:
+            raise ValueError("filters must share bit_count and hash_count")
+        combined = bytearray(a & b for a, b in zip(self._bits, other._bits))
+        return BloomFilter(self.bit_count, self.hash_count, bits=combined)
 
 
 def choose_filter_size(local_count, remote_count, record_width, *, selectivity=0.0):
