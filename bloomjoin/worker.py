@@ -1,8 +1,10 @@
 """The remote process owns the remote SQLite connection."""
+import base64
 from contextlib import closing
 import socket
 import sqlite3
 from .protocol import Channel, encode_json
+from .strategies import BloomFilter
 
 
 def sizing_statistics(db):
@@ -27,12 +29,23 @@ def serve(database, address):
             if request == {"request": "sizing"}:
                 channel.send({"sizing": sizing_statistics(db)})
                 request = channel.receive()
-            if request != {"strategy": "full"}:
-                raise ValueError("Only the full-transfer baseline is implemented")
+            strategy = request.get("strategy")
+            if strategy == "full":
+                candidate = None
+            elif strategy == "bloom":
+                candidate = BloomFilter.from_bytes(request["bit_count"], request["hash_count"],
+                                                   base64.b64decode(request["filter"]))
+            else:
+                raise ValueError(f"Unknown strategy: {strategy!r}")
             cursor = db.execute("SELECT join_key, payload FROM records ORDER BY join_key")
             while True:
                 batch = cursor.fetchmany(1000)
                 if not batch:
                     break
+                if candidate is not None:
+                    # Keep only rows that might match a local key (false positives possible).
+                    batch = [row for row in batch if candidate.might_contain(row[0])]
+                    if not batch:
+                        continue
                 channel.send({"rows": batch})
         channel.send({"done": True})
