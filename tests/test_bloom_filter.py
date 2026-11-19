@@ -60,13 +60,29 @@ class BloomFilterTests(unittest.TestCase):
 
 class DistributedBloomTests(unittest.TestCase):
     """Require exact SQL results despite probabilistic candidate selection."""
+    def test_simulated_bandwidth_delays_both_directions_without_changing_results(self):
+        """A real spawned worker honors the rate and preserves bytes/correctness."""
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = generate(tmp, 20, .1, 8)
+            for strategy in ('full', 'bloom-local'):
+                unlimited = run(*paths, strategy=strategy)
+                limited = run(*paths, strategy=strategy, bandwidth_mbps=.05)
+                self.assertTrue(limited['verified'])
+                self.assertEqual(limited['result_rows'], unlimited['result_rows'])
+                self.assertEqual(limited['application_bytes'], unlimited['application_bytes'])
+                # Both request and response frames must be delayed, once each.
+                minimum = limited['application_bytes'] / (.05 * 125000)
+                self.assertGreaterEqual(limited['query_seconds'], minimum * .99)
+                self.assertEqual(limited['bandwidth_mbps'], .05)
+                self.assertIn('simulated', limited['network'])
+
 
     def test_empty_disjoint_partial_and_complete_overlap(self):
         """Each method preserves true rows; filtering never increases row count."""
         for rows, overlap in ((0, 0), (100, 0), (100, .1), (100, 1)):
             with self.subTest(rows=rows, overlap=overlap), tempfile.TemporaryDirectory() as tmp:
                 paths = generate(tmp, rows, overlap, 32)
-                for strategy in ('fixed', 'bloom'):
+                for strategy in ('fixed', 'bloom', 'bloom-local'):
                     metrics = run(*paths, strategy=strategy)
                     self.assertTrue(metrics['verified'])
                     self.assertEqual(metrics['result_rows'], int(rows * overlap))
@@ -74,7 +90,10 @@ class DistributedBloomTests(unittest.TestCase):
                     if rows:
                         self.assertTrue(metrics['filter_applied'])
                         self.assertGreater(metrics['local_filter_build_seconds'], 0)
-                        self.assertGreater(metrics['remote_filter_build_seconds'], 0)
+                        if strategy == 'bloom-local':
+                            self.assertEqual(metrics['remote_filter_build_seconds'], 0)
+                        else:
+                            self.assertGreater(metrics['remote_filter_build_seconds'], 0)
                         self.assertAlmostEqual(metrics['filter_build_seconds'],
                                                metrics['local_filter_build_seconds']
                                                + metrics['remote_filter_build_seconds'])
@@ -84,7 +103,7 @@ class DistributedBloomTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             paths = generate(tmp, 1000, .01, 128)
             baseline = run(*paths)
-            for strategy in ('fixed', 'bloom'):
+            for strategy in ('fixed', 'bloom', 'bloom-local'):
                 first = run(*paths, strategy=strategy)
                 second = run(*paths, strategy=strategy)
                 self.assertLess(first['application_bytes'], baseline['application_bytes'])
@@ -96,13 +115,14 @@ class DistributedBloomTests(unittest.TestCase):
         """An empty site short-circuits; an estimate of 100% bypasses filtering."""
         with tempfile.TemporaryDirectory() as tmp:
             paths = generate(tmp, 20, .5, 8)
-            bypass = run(*paths, strategy='bloom', selectivity=1)
-            self.assertEqual(bypass['execution_strategy'], 'full')
-            self.assertFalse(bypass['filter_applied'])
+            for strategy in ('bloom', 'bloom-local'):
+                bypass = run(*paths, strategy=strategy, selectivity=1)
+                self.assertEqual(bypass['execution_strategy'], 'full')
+                self.assertFalse(bypass['filter_applied'])
             with closing(sqlite3.connect(paths[0])) as db:
                 db.execute('DELETE FROM records')
                 db.commit()
-            for strategy in ('fixed', 'bloom'):
+            for strategy in ('fixed', 'bloom', 'bloom-local'):
                 empty = run(*paths, strategy=strategy)
                 self.assertEqual(empty['transferred_records'], 0)
                 self.assertEqual(empty['execution_strategy'], 'empty')
@@ -136,10 +156,58 @@ class DistributedBloomTests(unittest.TestCase):
             with closing(sqlite3.connect(paths[1])) as db:
                 db.execute('DELETE FROM records')
                 db.commit()
-            for strategy in ('full', 'fixed', 'bloom'):
+            for strategy in ('full', 'fixed', 'bloom', 'bloom-local'):
                 metrics = run(*paths, strategy=strategy)
                 self.assertTrue(metrics['verified'])
                 self.assertEqual(metrics['remote_records'], 0)
                 self.assertEqual(metrics['result_rows'], 0)
-                if strategy == 'bloom':
+                if strategy in ('bloom', 'bloom-local'):
                     self.assertEqual(metrics['execution_strategy'], 'empty')
+
+    def test_local_only_matches_two_filter_transfer_and_sizing(self):
+        """Removing the remote build preserves sizing, candidate counts and SQL rows."""
+        for overlap in (0, .1, .8, 1):
+            with self.subTest(overlap=overlap), tempfile.TemporaryDirectory() as tmp:
+                paths = generate(tmp, 200, overlap, 32)
+                original = run(*paths, strategy='bloom')
+                local_only = run(*paths, strategy='bloom-local')
+                self.assertEqual(local_only['sizing'], original['sizing'])
+                for name in ('filter_bytes', 'transferred_records', 'nonmatching_records',
+                             'result_rows', 'observed_false_positive_rate'):
+                    self.assertEqual(local_only[name], original[name], name)
+                self.assertTrue(local_only['verified'])
+                self.assertEqual(local_only['execution_strategy'], 'bloom-local')
+                self.assertEqual(local_only['remote_filter_build_seconds'], 0)
+                self.assertEqual(local_only['filter_build_seconds'],
+                                 local_only['local_filter_build_seconds'])
+                # The longer strategy name is the only wire-format difference.
+                self.assertEqual(local_only['application_bytes'] - original['application_bytes'],
+                                 len('bloom-local') - len('bloom'))
+
+    def test_worker_sends_identical_candidate_rows_without_remote_build(self):
+        """Check actual candidate keys/payloads, including forced false positives."""
+        import base64
+        from unittest.mock import patch
+        from bloomjoin.worker import serve
+
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = generate(tmp, 100, .1, 8)
+            # A tiny filter saturates: candidates include nonmatching keys too.
+            bloom = BloomFilter(8, 1)
+            for key in range(100):
+                bloom.add(key)
+            candidates = []
+            for strategy in ('bloom', 'bloom-local'):
+                request = {'strategy': strategy, 'bit_count': 8, 'hash_count': 1,
+                           'filter': base64.b64encode(bloom.to_bytes()).decode('ascii')}
+                with patch('bloomjoin.worker.socket.create_connection'), \
+                        patch('bloomjoin.worker.Channel') as channel_class:
+                    channel = channel_class.return_value
+                    channel.receive.return_value = request
+                    serve(str(paths[1]), ('127.0.0.1', 1))
+                messages = [call.args[0] for call in channel.send.call_args_list]
+                candidates.append([row for message in messages for row in message.get('rows', [])])
+                if strategy == 'bloom-local':
+                    self.assertEqual(float(messages[-1]['filter_build_seconds']), 0)
+            self.assertGreater(len(candidates[0]), 10)
+            self.assertEqual(candidates[0], candidates[1])

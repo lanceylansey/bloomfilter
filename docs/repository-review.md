@@ -42,15 +42,16 @@ Every hash position of x is one in R. Thus, at every position queried for x,
 exactly the same candidate decisions as probing L alone. This is true even
 when L has false positives. A regression test checks that equivalence.
 
-The implemented flow follows the proposal to make its work measurable. A useful
-next experiment is a separate local-filter-only method to quantify the second
-build's CPU overhead. AND may have a purpose in different multi-site flows, but
+The `fixed` and `bloom` flows follow the proposal to make its work measurable.
+The additional `bloom-local` method skips the second build to quantify that
+overhead while retaining the same cost-selected dimensions. AND may have a purpose in different multi-site flows, but
 it cannot improve this two-site remote-probe candidate set.
 
 ## Improvements to investigate next
 
-1. Add a local-filter-only variant and compare its build/query time with the
-   proposal flow while confirming identical candidate counts.
+1. Implemented: `bloom-local` skips the remote build/AND. Regression tests check
+   identical candidate rows (including false positives), dimensions, and SQL
+   results, plus zero remote build time. Comparisons retain both variants.
 2. Extend cost selection to actual framing and base64 size (about 4/3 of packed
    size), integer hash counts, and CPU costs. The present model remains a faithful
    continuous Section 4.1 adaptation; its optimum is not a measured wire optimum.
@@ -59,7 +60,7 @@ it cannot improve this two-site remote-probe candidate set.
 4. Compare a faster noncryptographic hash/bit-array implementation while charging
    the same wire format and retaining deterministic cross-process compatibility.
 5. Measure controlled bandwidth/latency separately from this loopback experiment.
-   A full-transfer exact-key semijoin would also be a useful fourth baseline.
+   An exact-key semijoin would also be a useful additional baseline.
 6. If expanding beyond the proposal, support skewed cardinalities, repeated keys,
    nullable keys, snapshot consistency, streaming reference verification and
    multiple sites. Those change assumptions and should be separate experiments.
@@ -67,7 +68,7 @@ it cannot improve this two-site remote-probe candidate set.
 The implementation deliberately does not claim that Bloom filtering always wins
 or reproduce the complete optimizer from the paper.
 
-## Final verification
+## Initial three-method verification
 
 All 33 unit/integration tests passed, the single-query CLI smoke check passed,
 and `git diff --check` found no whitespace errors. Every source/test function

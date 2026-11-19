@@ -6,11 +6,11 @@ import sqlite3
 import base64
 from pathlib import Path
 from time import perf_counter
-from .protocol import Channel
+from .protocol import Channel, validate_bandwidth, network_description
 from .worker import serve
 from .strategies import FilterSize, choose_filter_size, fixed_filter_size, BloomFilter
 
-STRATEGIES = ("full", "fixed", "bloom")
+STRATEGIES = ("full", "fixed", "bloom", "bloom-local")
 
 
 # Every strategy returns the same columns/order so complete results are comparable.
@@ -25,17 +25,21 @@ def reference_join(local_path, remote_path):
         return db.execute("SELECT l.join_key, l.payload, r.payload FROM records l JOIN remote.records r ON l.join_key = r.join_key ORDER BY l.join_key").fetchall()
 
 
-def run(local_path, remote_path, strategy="full", *, collect_sizing=False, selectivity=0.0):
+def run(local_path, remote_path, strategy="full", *, collect_sizing=False, selectivity=0.0,
+        bandwidth_mbps=None):
     """Run one query against an independent remote process and verify its result.
 
     bloom selects size from the cost model; fixed uses ten bits per local key.
+    bloom-local uses the same cost-selected size but skips the remote build/AND.
     selectivity is an estimate supplied by the caller, never measured overlap.
     collect_sizing adds a measured metadata exchange even to full/fixed runs.
+    bandwidth_mbps adds simulated transmission delay at both senders, in query time.
     """
     if strategy not in STRATEGIES:
         raise ValueError(f"Unknown strategy: {strategy!r}")
     # Validate even when empty inputs would otherwise bypass the sizing policy.
     choose_filter_size(0, 0, 1, selectivity=selectivity)
+    validate_bandwidth(bandwidth_mbps)
     for path in (local_path, remote_path):
         if not Path(path).is_file():
             raise FileNotFoundError(path)
@@ -45,13 +49,14 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False, selec
         listener.bind(("127.0.0.1", 0))  # Port zero asks the OS for a free local port.
         listener.listen(1)
         listener.settimeout(30)
-        process = context.Process(target=serve, args=(str(remote_path), listener.getsockname()))
+        process = context.Process(target=serve, args=(str(remote_path), listener.getsockname(),
+                                                       bandwidth_mbps))
         process.start()  # The worker connects back to the address above.
         try:
             connection, _ = listener.accept()
             with connection, closing(sqlite3.connect(local_path)) as db:
                 connection.settimeout(30)
-                channel = Channel(connection)
+                channel = Channel(connection, bandwidth_mbps=bandwidth_mbps)
                 # TEMP keeps received candidates separate from persistent local data.
                 db.execute("CREATE TEMP TABLE incoming (join_key INTEGER PRIMARY KEY, payload TEXT NOT NULL)")
                 # Startup/connection setup is excluded; scans and query work follow.
@@ -61,7 +66,7 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False, selec
                 local_count = db.execute("SELECT COUNT(*) FROM records").fetchone()[0]
                 remote_count = None
                 metadata_bytes = 0
-                if collect_sizing or strategy == "bloom":
+                if collect_sizing or strategy in ("bloom", "bloom-local"):
                     # Metadata is part of the measured exchange, not free optimizer input.
                     before_metadata = channel.bytes_sent + channel.bytes_received
                     channel.send({"request": "sizing"})
@@ -102,7 +107,8 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False, selec
                     filter_seconds = perf_counter() - built
                     filter_bytes = len(data)
                     # Base64 represents binary storage as JSON-safe ASCII text.
-                    request = {"strategy": "bloom", "bit_count": size.bit_count,
+                    request = {"strategy": "bloom-local" if strategy == "bloom-local" else "bloom",
+                               "bit_count": size.bit_count,
                                "hash_count": size.hash_count,
                                "filter": base64.b64encode(data).decode("ascii")}
                     sizing["filter_applied"] = True
@@ -110,7 +116,7 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False, selec
                 # Stream into SQLite rather than accumulating all candidates in Python.
                 transferred = 0
                 remote_filter_seconds = 0.0
-                filter_applied = request["strategy"] == "bloom"
+                filter_applied = request["strategy"] in ("bloom", "bloom-local")
                 while True:
                     message = channel.receive()
                     if message.get("done"):
@@ -125,6 +131,8 @@ def run(local_path, remote_path, strategy="full", *, collect_sizing=False, selec
                 elapsed = perf_counter() - start
                 metrics = {
                     "strategy": strategy,
+                    "network": network_description(bandwidth_mbps),
+                    "bandwidth_mbps": bandwidth_mbps,
                     "application_bytes": channel.bytes_sent + channel.bytes_received,
                     "query_seconds": elapsed,
                     # Sum wall-clock build intervals already included in query_seconds.

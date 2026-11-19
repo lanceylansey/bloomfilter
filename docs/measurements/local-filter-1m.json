@@ -1,0 +1,427 @@
+{
+  "configuration": {
+    "rows_per_site": 1000000,
+    "overlap": 0.1,
+    "payload_bytes": 32,
+    "seed": 42,
+    "repeats": 3,
+    "warmups": 1,
+    "selectivity_estimate": 0.0
+  },
+  "environment": {
+    "python": "3.13.1",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "sqlite": "3.45.3"
+  },
+  "measurement": {
+    "network": "loopback TCP",
+    "order": "rotating strategy order",
+    "bytes": "all application frames, both directions counted once; excludes TCP/IP",
+    "timing": "local count through exact join; excludes startup, generation and validation",
+    "filter_build": "sum of local build and remote build/AND; included in query time",
+    "warmups": "verified and excluded; fresh process per run"
+  },
+  "methods": {
+    "full": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "full",
+          "application_bytes": 44902984,
+          "query_seconds": 1.8319047000004502,
+          "filter_build_seconds": 0.0,
+          "local_filter_build_seconds": 0.0,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 0,
+          "filter_applied": false,
+          "execution_strategy": "full",
+          "remote_records": 1000000,
+          "rejected_records": 0,
+          "transferred_records": 1000000,
+          "nonmatching_records": 900000,
+          "result_rows": 100000,
+          "observed_false_positive_rate": null,
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "full",
+          "application_bytes": 44902984,
+          "query_seconds": 1.811064699999406,
+          "filter_build_seconds": 0.0,
+          "local_filter_build_seconds": 0.0,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 0,
+          "filter_applied": false,
+          "execution_strategy": "full",
+          "remote_records": 1000000,
+          "rejected_records": 0,
+          "transferred_records": 1000000,
+          "nonmatching_records": 900000,
+          "result_rows": 100000,
+          "observed_false_positive_rate": null,
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "full",
+          "application_bytes": 44902984,
+          "query_seconds": 1.809044099998573,
+          "filter_build_seconds": 0.0,
+          "local_filter_build_seconds": 0.0,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 0,
+          "filter_applied": false,
+          "execution_strategy": "full",
+          "remote_records": 1000000,
+          "rejected_records": 0,
+          "transferred_records": 1000000,
+          "nonmatching_records": 900000,
+          "result_rows": 100000,
+          "observed_false_positive_rate": null,
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 1.8173378333328098,
+          "median": 1.811064699999406,
+          "min": 1.809044099998573,
+          "max": 1.8319047000004502,
+          "stdev": 0.012655667089310338
+        },
+        "filter_build_seconds": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0
+        }
+      },
+      "mean_application_bytes": 44902984,
+      "byte_reduction_fraction": 0.0,
+      "speedup": 1.0
+    },
+    "fixed": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "fixed",
+          "application_bytes": 6401129,
+          "query_seconds": 13.580387699999847,
+          "filter_build_seconds": 9.456930900000032,
+          "local_filter_build_seconds": 4.944152000000031,
+          "remote_filter_build_seconds": 4.5127789,
+          "filter_bytes": 1250000,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 1000000,
+          "rejected_records": 892634,
+          "transferred_records": 107366,
+          "nonmatching_records": 7366,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.008184444444444444,
+          "sizing": {
+            "local_count": 1000000,
+            "bit_count": 10000000,
+            "hash_count": 7,
+            "metadata_application_bytes": 0,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "fixed",
+          "application_bytes": 6401129,
+          "query_seconds": 13.900627600000007,
+          "filter_build_seconds": 10.043770799998716,
+          "local_filter_build_seconds": 4.977021599999716,
+          "remote_filter_build_seconds": 5.066749199999,
+          "filter_bytes": 1250000,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 1000000,
+          "rejected_records": 892634,
+          "transferred_records": 107366,
+          "nonmatching_records": 7366,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.008184444444444444,
+          "sizing": {
+            "local_count": 1000000,
+            "bit_count": 10000000,
+            "hash_count": 7,
+            "metadata_application_bytes": 0,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "fixed",
+          "application_bytes": 6401129,
+          "query_seconds": 12.90299579999919,
+          "filter_build_seconds": 9.130007600000454,
+          "local_filter_build_seconds": 4.554354899999453,
+          "remote_filter_build_seconds": 4.575652700001,
+          "filter_bytes": 1250000,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 1000000,
+          "rejected_records": 892634,
+          "transferred_records": 107366,
+          "nonmatching_records": 7366,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.008184444444444444,
+          "sizing": {
+            "local_count": 1000000,
+            "bit_count": 10000000,
+            "hash_count": 7,
+            "metadata_application_bytes": 0,
+            "filter_applied": true
+          },
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 13.461337033333015,
+          "median": 13.580387699999847,
+          "min": 12.90299579999919,
+          "max": 13.900627600000007,
+          "stdev": 0.509359497819154
+        },
+        "filter_build_seconds": {
+          "mean": 9.543569766666401,
+          "median": 9.456930900000032,
+          "min": 9.130007600000454,
+          "max": 10.043770799998716,
+          "stdev": 0.46300163750325
+        }
+      },
+      "mean_application_bytes": 6401129,
+      "byte_reduction_fraction": 0.8574453537430831,
+      "speedup": 0.13500425914845687
+    },
+    "bloom": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "bloom",
+          "application_bytes": 6426813,
+          "query_seconds": 17.19022810000024,
+          "filter_build_seconds": 9.497689800002595,
+          "local_filter_build_seconds": 4.574727999999595,
+          "remote_filter_build_seconds": 4.922961800003,
+          "filter_bytes": 1340039,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 1000000,
+          "rejected_records": 894733,
+          "transferred_records": 105267,
+          "nonmatching_records": 5267,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.005852222222222222,
+          "sizing": {
+            "local_count": 1000000,
+            "row_count": 1000000,
+            "mean_row_bytes": 44.888869,
+            "selectivity_estimate": 0.0,
+            "bit_count": 10720312,
+            "hash_count": 7,
+            "metadata_application_bytes": 87,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "bloom",
+          "application_bytes": 6426813,
+          "query_seconds": 16.53661490000013,
+          "filter_build_seconds": 9.321000700001434,
+          "local_filter_build_seconds": 4.495577600002434,
+          "remote_filter_build_seconds": 4.825423099999,
+          "filter_bytes": 1340039,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 1000000,
+          "rejected_records": 894733,
+          "transferred_records": 105267,
+          "nonmatching_records": 5267,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.005852222222222222,
+          "sizing": {
+            "local_count": 1000000,
+            "row_count": 1000000,
+            "mean_row_bytes": 44.888869,
+            "selectivity_estimate": 0.0,
+            "bit_count": 10720312,
+            "hash_count": 7,
+            "metadata_application_bytes": 87,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "bloom",
+          "application_bytes": 6426813,
+          "query_seconds": 16.438249499999074,
+          "filter_build_seconds": 9.289564300000851,
+          "local_filter_build_seconds": 4.526328600000852,
+          "remote_filter_build_seconds": 4.7632357,
+          "filter_bytes": 1340039,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 1000000,
+          "rejected_records": 894733,
+          "transferred_records": 105267,
+          "nonmatching_records": 5267,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.005852222222222222,
+          "sizing": {
+            "local_count": 1000000,
+            "row_count": 1000000,
+            "mean_row_bytes": 44.888869,
+            "selectivity_estimate": 0.0,
+            "bit_count": 10720312,
+            "hash_count": 7,
+            "metadata_application_bytes": 87,
+            "filter_applied": true
+          },
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 16.721697499999816,
+          "median": 16.53661490000013,
+          "min": 16.438249499999074,
+          "max": 17.19022810000024,
+          "stdev": 0.4087292873429928
+        },
+        "filter_build_seconds": {
+          "mean": 9.369418266668294,
+          "median": 9.321000700001434,
+          "min": 9.289564300000851,
+          "max": 9.497689800002595,
+          "stdev": 0.11219292094066717
+        }
+      },
+      "mean_application_bytes": 6426813,
+      "byte_reduction_fraction": 0.8568733650307071,
+      "speedup": 0.10868142025250904
+    },
+    "bloom-local": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "bloom-local",
+          "application_bytes": 6426819,
+          "query_seconds": 11.714058500001556,
+          "filter_build_seconds": 4.404340900000534,
+          "local_filter_build_seconds": 4.404340900000534,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 1340039,
+          "filter_applied": true,
+          "execution_strategy": "bloom-local",
+          "remote_records": 1000000,
+          "rejected_records": 894733,
+          "transferred_records": 105267,
+          "nonmatching_records": 5267,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.005852222222222222,
+          "sizing": {
+            "local_count": 1000000,
+            "row_count": 1000000,
+            "mean_row_bytes": 44.888869,
+            "selectivity_estimate": 0.0,
+            "bit_count": 10720312,
+            "hash_count": 7,
+            "metadata_application_bytes": 87,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "bloom-local",
+          "application_bytes": 6426819,
+          "query_seconds": 11.54908770000111,
+          "filter_build_seconds": 4.389058300002944,
+          "local_filter_build_seconds": 4.389058300002944,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 1340039,
+          "filter_applied": true,
+          "execution_strategy": "bloom-local",
+          "remote_records": 1000000,
+          "rejected_records": 894733,
+          "transferred_records": 105267,
+          "nonmatching_records": 5267,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.005852222222222222,
+          "sizing": {
+            "local_count": 1000000,
+            "row_count": 1000000,
+            "mean_row_bytes": 44.888869,
+            "selectivity_estimate": 0.0,
+            "bit_count": 10720312,
+            "hash_count": 7,
+            "metadata_application_bytes": 87,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "bloom-local",
+          "application_bytes": 6426819,
+          "query_seconds": 11.882508700000471,
+          "filter_build_seconds": 4.708577699999296,
+          "local_filter_build_seconds": 4.708577699999296,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 1340039,
+          "filter_applied": true,
+          "execution_strategy": "bloom-local",
+          "remote_records": 1000000,
+          "rejected_records": 894733,
+          "transferred_records": 105267,
+          "nonmatching_records": 5267,
+          "result_rows": 100000,
+          "observed_false_positive_rate": 0.005852222222222222,
+          "sizing": {
+            "local_count": 1000000,
+            "row_count": 1000000,
+            "mean_row_bytes": 44.888869,
+            "selectivity_estimate": 0.0,
+            "bit_count": 10720312,
+            "hash_count": 7,
+            "metadata_application_bytes": 87,
+            "filter_applied": true
+          },
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 11.715218300001046,
+          "median": 11.714058500001556,
+          "min": 11.54908770000111,
+          "max": 11.882508700000471,
+          "stdev": 0.16671352573253534
+        },
+        "filter_build_seconds": {
+          "mean": 4.500658966667591,
+          "median": 4.404340900000534,
+          "min": 4.389058300002944,
+          "max": 4.708577699999296,
+          "stdev": 0.18022496835446242
+        }
+      },
+      "mean_application_bytes": 6426819,
+      "byte_reduction_fraction": 0.8568732314092979,
+      "speedup": 0.15512624577662779
+    }
+  }
+}

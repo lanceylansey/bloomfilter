@@ -1,0 +1,453 @@
+{
+  "configuration": {
+    "rows_per_site": 100000,
+    "overlap": 0.1,
+    "payload_bytes": 32,
+    "seed": 42,
+    "repeats": 3,
+    "warmups": 1,
+    "selectivity_estimate": 0.0,
+    "bandwidth_mbps": 10.0
+  },
+  "environment": {
+    "python": "3.13.1",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "sqlite": "3.45.3"
+  },
+  "measurement": {
+    "network": "loopback TCP with simulated application-bandwidth delay",
+    "bandwidth_model": "sender-paced framed application bytes per direction; no latency/loss/TCP header model",
+    "order": "rotating strategy order",
+    "bytes": "all application frames, both directions counted once; excludes TCP/IP",
+    "timing": "local count through exact join; excludes startup, generation and validation",
+    "filter_build": "sum of local build and remote build/AND; included in query time",
+    "warmups": "verified and excluded; fresh process per run"
+  },
+  "methods": {
+    "full": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "full",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 4390490,
+          "query_seconds": 3.728246799997578,
+          "filter_build_seconds": 0.0,
+          "local_filter_build_seconds": 0.0,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 0,
+          "filter_applied": false,
+          "execution_strategy": "full",
+          "remote_records": 100000,
+          "rejected_records": 0,
+          "transferred_records": 100000,
+          "nonmatching_records": 90000,
+          "result_rows": 10000,
+          "observed_false_positive_rate": null,
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "full",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 4390490,
+          "query_seconds": 3.7337047000000894,
+          "filter_build_seconds": 0.0,
+          "local_filter_build_seconds": 0.0,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 0,
+          "filter_applied": false,
+          "execution_strategy": "full",
+          "remote_records": 100000,
+          "rejected_records": 0,
+          "transferred_records": 100000,
+          "nonmatching_records": 90000,
+          "result_rows": 10000,
+          "observed_false_positive_rate": null,
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "full",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 4390490,
+          "query_seconds": 3.723793499997555,
+          "filter_build_seconds": 0.0,
+          "local_filter_build_seconds": 0.0,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 0,
+          "filter_applied": false,
+          "execution_strategy": "full",
+          "remote_records": 100000,
+          "rejected_records": 0,
+          "transferred_records": 100000,
+          "nonmatching_records": 90000,
+          "result_rows": 10000,
+          "observed_false_positive_rate": null,
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 3.728581666665074,
+          "median": 3.728246799997578,
+          "min": 3.723793499997555,
+          "max": 3.7337047000000894,
+          "stdev": 0.0049640782766097735
+        },
+        "filter_build_seconds": {
+          "mean": 0.0,
+          "median": 0.0,
+          "min": 0.0,
+          "max": 0.0,
+          "stdev": 0.0
+        }
+      },
+      "mean_application_bytes": 4390490,
+      "byte_reduction_fraction": 0.0,
+      "speedup": 1.0
+    },
+    "fixed": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "fixed",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 628622,
+          "query_seconds": 1.944117399998504,
+          "filter_build_seconds": 1.0310836999999213,
+          "local_filter_build_seconds": 0.5875354999989213,
+          "remote_filter_build_seconds": 0.443548200001,
+          "filter_bytes": 125000,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 100000,
+          "rejected_records": 89286,
+          "transferred_records": 10714,
+          "nonmatching_records": 714,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.007933333333333334,
+          "sizing": {
+            "local_count": 100000,
+            "bit_count": 1000000,
+            "hash_count": 7,
+            "metadata_application_bytes": 0,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "fixed",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 628622,
+          "query_seconds": 1.9263026000007812,
+          "filter_build_seconds": 1.0139619999968863,
+          "local_filter_build_seconds": 0.5602528999988863,
+          "remote_filter_build_seconds": 0.453709099998,
+          "filter_bytes": 125000,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 100000,
+          "rejected_records": 89286,
+          "transferred_records": 10714,
+          "nonmatching_records": 714,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.007933333333333334,
+          "sizing": {
+            "local_count": 100000,
+            "bit_count": 1000000,
+            "hash_count": 7,
+            "metadata_application_bytes": 0,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "fixed",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 628622,
+          "query_seconds": 1.9051128999999491,
+          "filter_build_seconds": 0.9965998000009287,
+          "local_filter_build_seconds": 0.5496997000009287,
+          "remote_filter_build_seconds": 0.4469001,
+          "filter_bytes": 125000,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 100000,
+          "rejected_records": 89286,
+          "transferred_records": 10714,
+          "nonmatching_records": 714,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.007933333333333334,
+          "sizing": {
+            "local_count": 100000,
+            "bit_count": 1000000,
+            "hash_count": 7,
+            "metadata_application_bytes": 0,
+            "filter_applied": true
+          },
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 1.9251776333330781,
+          "median": 1.9263026000007812,
+          "min": 1.9051128999999491,
+          "max": 1.944117399998504,
+          "stdev": 0.019526569528130075
+        },
+        "filter_build_seconds": {
+          "mean": 1.0138818333325788,
+          "median": 1.0139619999968863,
+          "min": 0.9965998000009287,
+          "max": 1.0310836999999213,
+          "stdev": 0.0172420897748991
+        }
+      },
+      "mean_application_bytes": 628622,
+      "byte_reduction_fraction": 0.8568219037055089,
+      "speedup": 1.9367468238293135
+    },
+    "bloom": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "bloom",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 632613,
+          "query_seconds": 2.26287670000238,
+          "filter_build_seconds": 1.0060789000013846,
+          "local_filter_build_seconds": 0.5537829999993846,
+          "remote_filter_build_seconds": 0.452295900002,
+          "filter_bytes": 133419,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 100000,
+          "rejected_records": 89452,
+          "transferred_records": 10548,
+          "nonmatching_records": 548,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.0060888888888888885,
+          "sizing": {
+            "local_count": 100000,
+            "row_count": 100000,
+            "mean_row_bytes": 43.88976,
+            "selectivity_estimate": 0.0,
+            "bit_count": 1067352,
+            "hash_count": 7,
+            "metadata_application_bytes": 85,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "bloom",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 632613,
+          "query_seconds": 2.3024803000007523,
+          "filter_build_seconds": 1.0366988000019033,
+          "local_filter_build_seconds": 0.5623986999999033,
+          "remote_filter_build_seconds": 0.474300100002,
+          "filter_bytes": 133419,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 100000,
+          "rejected_records": 89452,
+          "transferred_records": 10548,
+          "nonmatching_records": 548,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.0060888888888888885,
+          "sizing": {
+            "local_count": 100000,
+            "row_count": 100000,
+            "mean_row_bytes": 43.88976,
+            "selectivity_estimate": 0.0,
+            "bit_count": 1067352,
+            "hash_count": 7,
+            "metadata_application_bytes": 85,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "bloom",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 632613,
+          "query_seconds": 2.2415456000017002,
+          "filter_build_seconds": 0.9923261000002991,
+          "local_filter_build_seconds": 0.5465449000002991,
+          "remote_filter_build_seconds": 0.4457812,
+          "filter_bytes": 133419,
+          "filter_applied": true,
+          "execution_strategy": "bloom",
+          "remote_records": 100000,
+          "rejected_records": 89452,
+          "transferred_records": 10548,
+          "nonmatching_records": 548,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.0060888888888888885,
+          "sizing": {
+            "local_count": 100000,
+            "row_count": 100000,
+            "mean_row_bytes": 43.88976,
+            "selectivity_estimate": 0.0,
+            "bit_count": 1067352,
+            "hash_count": 7,
+            "metadata_application_bytes": 85,
+            "filter_applied": true
+          },
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 2.268967533334944,
+          "median": 2.26287670000238,
+          "min": 2.2415456000017002,
+          "max": 2.3024803000007523,
+          "stdev": 0.03092059352611826
+        },
+        "filter_build_seconds": {
+          "mean": 1.0117012666678624,
+          "median": 1.0060789000013846,
+          "min": 0.9923261000002991,
+          "max": 1.0366988000019033,
+          "stdev": 0.022714365092542904
+        }
+      },
+      "mean_application_bytes": 632613,
+      "byte_reduction_fraction": 0.8559128935494671,
+      "speedup": 1.643294411174222
+    },
+    "bloom-local": {
+      "runs": [
+        {
+          "repeat": 1,
+          "strategy": "bloom-local",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 632619,
+          "query_seconds": 1.8029468999993696,
+          "filter_build_seconds": 0.5538315999983752,
+          "local_filter_build_seconds": 0.5538315999983752,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 133419,
+          "filter_applied": true,
+          "execution_strategy": "bloom-local",
+          "remote_records": 100000,
+          "rejected_records": 89452,
+          "transferred_records": 10548,
+          "nonmatching_records": 548,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.0060888888888888885,
+          "sizing": {
+            "local_count": 100000,
+            "row_count": 100000,
+            "mean_row_bytes": 43.88976,
+            "selectivity_estimate": 0.0,
+            "bit_count": 1067352,
+            "hash_count": 7,
+            "metadata_application_bytes": 85,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 2,
+          "strategy": "bloom-local",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 632619,
+          "query_seconds": 1.8119253999975626,
+          "filter_build_seconds": 0.5524827999979607,
+          "local_filter_build_seconds": 0.5524827999979607,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 133419,
+          "filter_applied": true,
+          "execution_strategy": "bloom-local",
+          "remote_records": 100000,
+          "rejected_records": 89452,
+          "transferred_records": 10548,
+          "nonmatching_records": 548,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.0060888888888888885,
+          "sizing": {
+            "local_count": 100000,
+            "row_count": 100000,
+            "mean_row_bytes": 43.88976,
+            "selectivity_estimate": 0.0,
+            "bit_count": 1067352,
+            "hash_count": 7,
+            "metadata_application_bytes": 85,
+            "filter_applied": true
+          },
+          "verified": true
+        },
+        {
+          "repeat": 3,
+          "strategy": "bloom-local",
+          "network": "loopback TCP with simulated application-bandwidth delay",
+          "bandwidth_mbps": 10.0,
+          "application_bytes": 632619,
+          "query_seconds": 1.797860300001048,
+          "filter_build_seconds": 0.5525658000005933,
+          "local_filter_build_seconds": 0.5525658000005933,
+          "remote_filter_build_seconds": 0.0,
+          "filter_bytes": 133419,
+          "filter_applied": true,
+          "execution_strategy": "bloom-local",
+          "remote_records": 100000,
+          "rejected_records": 89452,
+          "transferred_records": 10548,
+          "nonmatching_records": 548,
+          "result_rows": 10000,
+          "observed_false_positive_rate": 0.0060888888888888885,
+          "sizing": {
+            "local_count": 100000,
+            "row_count": 100000,
+            "mean_row_bytes": 43.88976,
+            "selectivity_estimate": 0.0,
+            "bit_count": 1067352,
+            "hash_count": 7,
+            "metadata_application_bytes": 85,
+            "filter_applied": true
+          },
+          "verified": true
+        }
+      ],
+      "timing_seconds": {
+        "query_seconds": {
+          "mean": 1.8042441999993268,
+          "median": 1.8029468999993696,
+          "min": 1.797860300001048,
+          "max": 1.8119253999975626,
+          "stdev": 0.0071217273147323925
+        },
+        "filter_build_seconds": {
+          "mean": 0.552960066665643,
+          "median": 0.5525658000005933,
+          "min": 0.5524827999979607,
+          "max": 0.5538315999983752,
+          "stdev": 0.0007559100559303456
+        }
+      },
+      "mean_application_bytes": 632619,
+      "byte_reduction_fraction": 0.8559115269594054,
+      "speedup": 2.066561536773384
+    }
+  }
+}

@@ -17,6 +17,9 @@ creates the output directory, and writes UTF-8 JSON. The `if __name__` guard is
 required for safe multiprocessing spawn, particularly on Windows. The benchmark
 module uses the same guard for its CLI.
 
+`bloom-local` is an additional cost-selected strategy in both CLIs. It uses the
+same sizing and transport as `bloom`, then probes the received filter directly.
+
 ## Data generation: `data.generate`
 
 Validation rejects negative sizes, non-integer row/payload sizes, booleans and
@@ -32,11 +35,17 @@ two independent sites; database pages need not retain shuffled insertion order.
 
 ## Framing: `protocol.py`
 
+- `validate_bandwidth`: accept unlimited operation or a finite rate of at least
+  0.001 Mbps; reject invalid inputs before spawning workers or allocating data.
+- `network_description`: distinguish ordinary loopback from simulated bandwidth
+  in the query and benchmark reports.
 - `encode_json`: compact separators produce deterministic application payloads;
   default JSON escaping is also used in the width estimator.
 - `Channel.__init__`: retain the socket and initialize separate direction counters.
 - `Channel.send`: serialize, enforce the body limit, prepend a big-endian unsigned
-  four-byte length, `sendall`, then count the complete packet.
+  four-byte length, send, then count the complete packet. With a bandwidth limit,
+  pace chunks before writing against per-frame deadlines. Each outgoing frame is
+  charged once at its sender; receiving never adds another artificial delay.
 - `Channel._read`: TCP can split a frame arbitrarily, so loop until the requested
   length is available. Empty `recv` signals premature EOF. Count complete reads.
 - `Channel.receive`: read the length, reject excessive bodies before allocation,
@@ -45,6 +54,12 @@ two independent sites; database pages need not retain shuffled insertion order.
 Only one endpoint's sent-plus-received count is reported; adding both endpoints
 would count every frame twice. The protocol is a trusted loopback experiment,
 without authentication, schema negotiation or encryption.
+
+`bandwidth_mbps` is passed from the CLI through the benchmark/coordinator to both
+channels, including the spawned worker. Pacing uses decimal megabits/s converted
+to bytes/s. Chunks target at most 50 ms of simulated transmission (and at most
+64 KiB), allowing socket reads to progress during a slow large frame. This models
+application transmission, not a physical network's latency/loss/congestion.
 
 ## Filters and policies: `strategies.py`
 
@@ -114,8 +129,9 @@ width (zero for empty input). Actual message counters separately include envelop
 `serve` connects back to the coordinator and opens the remote database itself.
 It optionally responds to sizing before reading the strategy. Full transfer uses
 no candidate filter; empty sends completion without candidate rows. Bloom restores
-the local filter, builds a compatible remote filter, ANDs them, and times the
-remote construction/AND interval. Unknown strategies fail explicitly. A cursor
+the local filter. `bloom` builds a compatible remote filter, ANDs them, and times
+the remote construction/AND interval; `bloom-local` skips that work and records
+zero remote construction time. Unknown strategies fail explicitly. A cursor
 fetches up to 1,000 ordered rows at a time; optional membership tests remove
 definite misses; empty filtered batches are skipped. The final message reports
 completion, original row count and build time. No joined result travels back.

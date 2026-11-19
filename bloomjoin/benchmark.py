@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from .data import generate
 from .experiment import run, STRATEGIES
+from .protocol import validate_bandwidth, network_description
 
 
 TIMING_METRICS = ("query_seconds", "filter_build_seconds")
@@ -32,16 +33,18 @@ def summarize(runs):
 
 
 def benchmark(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warmups=1,
-              strategy="full", selectivity=0.0):
+              strategy="full", selectivity=0.0, *, bandwidth_mbps=None):
     """Repeat one strategy on reused databases; verify and exclude warmups."""
     if repeats < 1 or warmups < 0:
         raise ValueError("repeats must be positive and warmups must be nonnegative")
+    validate_bandwidth(bandwidth_mbps)
     measured = []
     # Generate once and reuse the same databases across all runs. Clean up on failure.
     with tempfile.TemporaryDirectory(prefix="bloomjoin-benchmark-") as directory:
         paths = generate(directory, rows, overlap, payload_bytes, seed)
         for index in range(warmups + repeats):
-            metrics = run(*paths, strategy=strategy, selectivity=selectivity)
+            metrics = run(*paths, strategy=strategy, selectivity=selectivity,
+                          bandwidth_mbps=bandwidth_mbps)
             if metrics.get("verified") is not True:
                 raise AssertionError("Cannot benchmark an unverified result")
             # Warmups still run correctness checks, but do not enter the report.
@@ -51,11 +54,12 @@ def benchmark(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warm
         "configuration": {"rows_per_site": rows, "overlap": overlap,
                           "payload_bytes": payload_bytes, "seed": seed,
                           "repeats": repeats, "warmups": warmups, "strategy": strategy,
-                          "selectivity_estimate": selectivity},
+                          "selectivity_estimate": selectivity, "bandwidth_mbps": bandwidth_mbps},
         "environment": {"python": platform.python_version(),
                         "platform": platform.platform(), "sqlite": sqlite3.sqlite_version},
         "measurement": {
-            "network": "loopback TCP",
+            "network": network_description(bandwidth_mbps),
+            "bandwidth_model": "sender-paced framed application bytes per direction; no latency/loss/TCP header model",
             "bytes": "application messages plus framing, both directions counted once",
             "timing": "local count through exact join; excludes generation, process startup/connection, reference validation",
             "filter_build": "sum of local build and remote build/AND; included in query time",
@@ -67,10 +71,11 @@ def benchmark(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warm
 
 
 def compare(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warmups=1,
-            selectivity=0.0):
-    """Compare all methods on one dataset, rotating execution order each round."""
+            selectivity=0.0, *, bandwidth_mbps=None):
+    """Compare all four methods on one dataset, rotating order each round."""
     if repeats < 1 or warmups < 0:
         raise ValueError("repeats must be positive and warmups must be nonnegative")
+    validate_bandwidth(bandwidth_mbps)
     measured = {strategy: [] for strategy in STRATEGIES}
     with tempfile.TemporaryDirectory(prefix="bloomjoin-compare-") as directory:
         paths = generate(directory, rows, overlap, payload_bytes, seed)
@@ -78,7 +83,8 @@ def compare(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warmup
             # Rotate the first method so one method is not always run first.
             offset = index % len(STRATEGIES)
             for strategy in STRATEGIES[offset:] + STRATEGIES[:offset]:
-                metrics = run(*paths, strategy=strategy, selectivity=selectivity)
+                metrics = run(*paths, strategy=strategy, selectivity=selectivity,
+                              bandwidth_mbps=bandwidth_mbps)
                 if metrics.get("verified") is not True:
                     raise AssertionError("Cannot benchmark an unverified result")
                 if index >= warmups:
@@ -102,10 +108,12 @@ def compare(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warmup
         "configuration": {"rows_per_site": rows, "overlap": overlap,
                           "payload_bytes": payload_bytes, "seed": seed,
                           "repeats": repeats, "warmups": warmups,
-                          "selectivity_estimate": selectivity},
+                          "selectivity_estimate": selectivity, "bandwidth_mbps": bandwidth_mbps},
         "environment": {"python": platform.python_version(),
                         "platform": platform.platform(), "sqlite": sqlite3.sqlite_version},
-        "measurement": {"network": "loopback TCP", "order": "rotating strategy order",
+        "measurement": {"network": network_description(bandwidth_mbps),
+                        "bandwidth_model": "sender-paced framed application bytes per direction; no latency/loss/TCP header model",
+                        "order": "rotating strategy order",
                         "bytes": "all application frames, both directions counted once; excludes TCP/IP",
                         "timing": "local count through exact join; excludes startup, generation and validation",
                         "filter_build": "sum of local build and remote build/AND; included in query time",
@@ -114,7 +122,7 @@ def compare(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warmup
     }
 
 
-def suite(seed=42, repeats=3, warmups=1, selectivity=0.0):
+def suite(seed=42, repeats=3, warmups=1, selectivity=0.0, *, bandwidth_mbps=None):
     """Vary proposal factors individually around 10k rows, 10% overlap, 32 bytes."""
     # dict.fromkeys removes repeated baseline cases while preserving their order.
     cases = dict.fromkeys(
@@ -122,7 +130,8 @@ def suite(seed=42, repeats=3, warmups=1, selectivity=0.0):
         + [(10000, overlap, 32) for overlap in (0, 0.01, 0.1, 0.5, 1)]
         + [(10000, 0.1, width) for width in (32, 128, 512)])
     return {"baseline": {"rows": 10000, "overlap": 0.1, "payload_bytes": 32},
-            "experiments": [compare(n, overlap, width, seed, repeats, warmups, selectivity)
+            "experiments": [compare(n, overlap, width, seed, repeats, warmups, selectivity,
+                                    bandwidth_mbps=bandwidth_mbps)
                             for n, overlap, width in cases]}
 
 
@@ -133,6 +142,8 @@ def main():
     parser.add_argument("--overlap", type=float, default=0.1)
     parser.add_argument("--payload-bytes", type=int, default=32)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--bandwidth-mbps", type=float, default=None,
+                        help="Simulated application bandwidth per direction in megabits/s (>=0.001)")
     parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument("--warmups", type=int, default=1)
     parser.add_argument("--strategy", choices=STRATEGIES, default="full")
@@ -144,13 +155,16 @@ def main():
     parser.add_argument("--output", type=Path, default=Path("results/benchmark.json"))
     args = parser.parse_args()
     if args.suite:
-        report = suite(args.seed, args.repeats, args.warmups, args.selectivity_estimate)
+        report = suite(args.seed, args.repeats, args.warmups, args.selectivity_estimate,
+                       bandwidth_mbps=args.bandwidth_mbps)
     elif args.compare:
         report = compare(args.rows, args.overlap, args.payload_bytes, args.seed,
-                         args.repeats, args.warmups, args.selectivity_estimate)
+                         args.repeats, args.warmups, args.selectivity_estimate,
+                         bandwidth_mbps=args.bandwidth_mbps)
     else:
         report = benchmark(args.rows, args.overlap, args.payload_bytes, args.seed,
-                           args.repeats, args.warmups, args.strategy, args.selectivity_estimate)
+                           args.repeats, args.warmups, args.strategy, args.selectivity_estimate,
+                           bandwidth_mbps=args.bandwidth_mbps)
     # Save individual runs as well as summaries so calculations can be inspected.
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")

@@ -12,14 +12,31 @@ def sample(seconds):
 
 class BenchmarkTests(unittest.TestCase):
     """Check statistics, repeated-run bookkeeping, failures and real small queries."""
+    def test_bandwidth_is_forwarded_and_simulation_is_labeled(self):
+        """Every benchmark path uses and records the same requested rate."""
+        with patch('bloomjoin.benchmark.run', return_value=sample(2)) as runner:
+            report = compare(rows=5, repeats=1, warmups=0, bandwidth_mbps=10)
+        self.assertEqual(runner.call_count, 4)
+        self.assertTrue(all(c.kwargs['bandwidth_mbps'] == 10 for c in runner.call_args_list))
+        self.assertEqual(report['configuration']['bandwidth_mbps'], 10)
+        self.assertIn('simulated', report['measurement']['network'])
+        with patch('bloomjoin.benchmark.run', return_value=sample(2)) as runner:
+            report = benchmark(rows=5, repeats=1, warmups=0, bandwidth_mbps=10)
+        self.assertEqual(runner.call_args.kwargs['bandwidth_mbps'], 10)
+        self.assertEqual(report['configuration']['bandwidth_mbps'], 10)
+        with patch('bloomjoin.benchmark.compare', return_value={}) as comparison:
+            suite(repeats=1, warmups=0, bandwidth_mbps=10)
+        self.assertTrue(all(c.kwargs['bandwidth_mbps'] == 10 for c in comparison.call_args_list))
+
     def test_comparison_rotates_methods_and_excludes_warmups(self):
         """Compare the same paths with balanced order and discard verified warmups."""
         with patch('bloomjoin.benchmark.run', return_value=sample(2)) as runner:
             report = compare(rows=5, repeats=2, warmups=1)
-        self.assertEqual(runner.call_count, 9)
+        self.assertEqual(runner.call_count, 12)
         self.assertEqual([c.kwargs['strategy'] for c in runner.call_args_list],
-                         ['full', 'fixed', 'bloom', 'fixed', 'bloom', 'full',
-                          'bloom', 'full', 'fixed'])
+                         ['full', 'fixed', 'bloom', 'bloom-local',
+                          'fixed', 'bloom', 'bloom-local', 'full',
+                          'bloom', 'bloom-local', 'full', 'fixed'])
         self.assertEqual(len({c.args for c in runner.call_args_list}), 1)
         for method in report['methods'].values():
             self.assertEqual(len(method['runs']), 2)

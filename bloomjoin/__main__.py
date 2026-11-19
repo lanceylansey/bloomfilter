@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from .data import generate
 from .experiment import run, STRATEGIES
+from .protocol import validate_bandwidth
 
 
 def main():
@@ -13,6 +14,8 @@ def main():
     parser.add_argument("--overlap", type=float, default=0.1)
     parser.add_argument("--payload-bytes", type=int, default=32)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--bandwidth-mbps", type=float, default=None,
+                        help="Simulated application bandwidth per direction in megabits/s (>=0.001)")
     parser.add_argument("--strategy", choices=STRATEGIES, default="full")
     parser.add_argument("--selectivity-estimate", type=float, default=0.0,
                         help="Cost model input, independent of generated overlap")
@@ -21,16 +24,19 @@ def main():
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     parser.add_argument("--output", type=Path, default=Path("results/baseline.json"))
     args = parser.parse_args()
+    # Reject an invalid rate before replacing persistent experiment inputs.
+    validate_bandwidth(args.bandwidth_mbps)
     # Generate persistent experiment inputs; this replaces their records tables.
     paths = generate(args.data_dir, args.rows, args.overlap, args.payload_bytes, args.seed)
     # The runner verifies its answer before returning any successful measurement.
     metrics = run(*paths, strategy=args.strategy, collect_sizing=args.collect_sizing,
-                  selectivity=args.selectivity_estimate)
+                  selectivity=args.selectivity_estimate, bandwidth_mbps=args.bandwidth_mbps)
     # Save generation settings beside measurements to make the run reproducible.
     metrics["configuration"] = {"rows_per_site": args.rows, "overlap": args.overlap,
                                 "payload_bytes": args.payload_bytes, "seed": args.seed,
                                 "collect_sizing": args.collect_sizing, "strategy": args.strategy,
-                                "selectivity_estimate": args.selectivity_estimate}
+                                "selectivity_estimate": args.selectivity_estimate,
+                                "bandwidth_mbps": args.bandwidth_mbps}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(metrics, indent=2))

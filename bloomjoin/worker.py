@@ -23,14 +23,15 @@ def sizing_statistics(db):
     return {"row_count": count, "mean_row_bytes": row_bytes / count if count else 0.0}
 
 
-def serve(database, address):
+def serve(database, address, bandwidth_mbps=None):
     """Handle optional statistics, then filter and stream rows for one query.
 
-    Both sites use the same dimensions and deterministic hashes. The second
-    filter and AND follow the proposal; the exact SQL join remains authoritative.
+    Both sites use the same dimensions and deterministic hashes. bloom builds
+    the proposal's second filter/AND; bloom-local probes the received filter
+    directly. Both paths retain the same authoritative exact SQL join.
     """
     with socket.create_connection(address, timeout=30) as connection:
-        channel = Channel(connection)
+        channel = Channel(connection, bandwidth_mbps=bandwidth_mbps)
         with closing(sqlite3.connect(database)) as db:
             request = channel.receive()
             # Only the cost policy (or explicit collection) requests statistics first.
@@ -48,18 +49,21 @@ def serve(database, address):
                 channel.send({"done": True, "remote_records": remote_count,
                               "filter_build_seconds": format(0.0, "024.12f")})
                 return
-            elif strategy == "bloom":
+            elif strategy in ("bloom", "bloom-local"):
                 # Reuse the coordinator's dimensions; mismatched hashes/sizes lose safety.
                 candidate = BloomFilter.from_bytes(request["bit_count"], request["hash_count"],
                                                    base64.b64decode(request["filter"], validate=True))
-                built = perf_counter()
-                remote_filter = BloomFilter(candidate.bit_count, candidate.hash_count)
-                for (key,) in db.execute("SELECT join_key FROM records"):
-                    remote_filter.add(key)
-                # For keys inserted into remote_filter, this AND gives the same
-                # decisions as the local filter alone; see docs/repository-review.md.
-                candidate = candidate.intersection(remote_filter)
-                filter_seconds = perf_counter() - built
+                if strategy == "bloom":
+                    built = perf_counter()
+                    remote_filter = BloomFilter(candidate.bit_count, candidate.hash_count)
+                    for (key,) in db.execute("SELECT join_key FROM records"):
+                        remote_filter.add(key)
+                    # Retain this flow as the comparison control. Every remote key
+                    # already passes its own filter, so AND adds no extra pruning.
+                    candidate = candidate.intersection(remote_filter)
+                    filter_seconds = perf_counter() - built
+                # bloom-local uses the received filter as-is: no second key scan,
+                # filter allocation, hashing pass or AND. Its remote build time is 0.
             else:
                 raise ValueError(f"Unknown strategy: {strategy!r}")
             cursor = db.execute("SELECT join_key, payload FROM records ORDER BY join_key")
