@@ -1,4 +1,4 @@
-"""Extension points for Bloom filtering and cost-selected sizing."""
+"""Packed compatible Bloom filters and fixed/cost-selected sizing policies."""
 import math
 import hashlib
 from typing import NamedTuple
@@ -9,54 +9,86 @@ MAX_HASH_COUNT = 32
 
 
 class FilterSize(NamedTuple):
+    """Wire-compatible dimensions; (0, 0) requests a full-transfer fallback."""
     bit_count: int
     hash_count: int
 
 
 class BloomFilter:
+    """A deterministic integer-key filter; positive answers require an exact join."""
+
     def __init__(self, bit_count, hash_count, bits=None):
-        if bit_count <= 0 or hash_count <= 0:
-            raise ValueError("bit count and hash count must be positive")
+        """Allocate packed bits or restore a payload, enforcing resource limits."""
+        if (isinstance(bit_count, bool) or not isinstance(bit_count, int)
+                or not 0 < bit_count <= MAX_FILTER_BITS
+                or isinstance(hash_count, bool) or not isinstance(hash_count, int)
+                or not 0 < hash_count <= MAX_HASH_COUNT):
+            raise ValueError("bit count and hash count must be positive bounded integers")
         self.bit_count = bit_count
         self.hash_count = hash_count
-        nbytes = math.ceil(bit_count / 8)
+        nbytes = math.ceil(bit_count / 8)  # A partial final byte still needs storage.
         if bits is None:
             self._bits = bytearray(nbytes)
         else:
             if len(bits) != nbytes:
                 raise ValueError("bits length does not match bit_count")
-            self._bits = bytearray(bits)
+            self._bits = bytearray(bits)  # Copy so callers cannot mutate our storage.
 
     def _positions(self, key):
+        """Yield double-hash positions identically in independently spawned workers."""
         # Stable hashes so local and remote processes agree (never use hash()).
         raw = str(key).encode("utf-8")
         digest = hashlib.sha256(raw).digest()
+        # Split one digest into a starting position and a step for double hashing.
         h1 = int.from_bytes(digest[0:8], "big")
-        h2 = int.from_bytes(digest[8:16], "big")
-        return [((h1 + i * h2) % self.bit_count) for i in range(self.hash_count)]
+        h2 = int.from_bytes(digest[8:16], "big") or 1
+        # Yield lazily so a negative membership test can stop at its first zero.
+        for i in range(self.hash_count):
+            yield (h1 + i * h2) % self.bit_count
 
     def add(self, key):
+        """Set every position for a key; repeated insertions are harmless."""
         for p in self._positions(key):
+            # p // 8 chooses a byte; shifting 1 by p % 8 chooses its bit.
             self._bits[p // 8] |= 1 << (p % 8)
 
     def might_contain(self, key):
+        """Return False for a definite miss and True for a possible match."""
         for p in self._positions(key):
+            # Any missing bit proves absence; all set bits only suggest membership.
             if (self._bits[p // 8] & (1 << (p % 8))) == 0:
                 return False
         return True
 
     def to_bytes(self):
+        """Copy packed storage for transport without exposing mutable state."""
         return bytes(self._bits)
 
     @classmethod
     def from_bytes(cls, bit_count, hash_count, data):
+        """Restore packed bits with the same dimensions and hash algorithm."""
         return cls(bit_count, hash_count, bits=data)
 
     def intersection(self, other):
+        """AND compatible arrays; this approximates intersection, not an exact set."""
         if self.bit_count != other.bit_count or self.hash_count != other.hash_count:
             raise ValueError("filters must share bit_count and hash_count")
+        # Matching keys retain every selected bit; collisions can also survive AND.
         combined = bytearray(a & b for a, b in zip(self._bits, other._bits))
         return BloomFilter(self.bit_count, self.hash_count, bits=combined)
+
+
+def fixed_filter_size(local_count):
+    """Use ten bits per local key, byte alignment, and the nearest optimal k."""
+    if isinstance(local_count, bool) or not isinstance(local_count, int) or local_count < 0:
+        raise ValueError("local_count must be a nonnegative integer")
+    if not local_count:
+        return FilterSize(0, 0)
+    # Adding seven before integer division rounds ten bits/key up to whole bytes.
+    bits = min(MAX_FILTER_BITS, 8 * ((10 * local_count + 7) // 8))
+    # Optimal continuous k is (m/n) ln(2); round to a bounded integer.
+    hashes = max(1, min(MAX_HASH_COUNT, math.floor(bits / local_count * math.log(2) + 0.5)))
+    return FilterSize(bits, hashes)
 
 
 def choose_filter_size(local_count, remote_count, record_width, *, selectivity=0.0):
@@ -81,15 +113,19 @@ def choose_filter_size(local_count, remote_count, record_width, *, selectivity=0
             raise ValueError(f"{name} must be a finite number")
     if record_width <= 0 or not 0 <= selectivity <= 1:
         raise ValueError("record_width must be positive; selectivity must be in [0, 1]")
+    # Empty inputs need no filter; complete expected overlap offers no pruning.
     if not local_count or not remote_count or selectivity == 1:
         return FilterSize(0, 0)
 
     # Generalize r to n inserted keys and R probed rows. Logs avoid overflow
     # from multiplying huge counts and widths. Width is converted to bits.
     ln2 = math.log(2)
+    # This is ln(8 * R * width * (1-selectivity) * ln(2)^2 / n).
+    # log1p(-selectivity) remains accurate when selectivity is close to zero.
     log_factor = (math.log(remote_count) - math.log(local_count)
                   + math.log1p(-selectivity) + math.log(record_width)
                   + math.log(8) + 2 * math.log(ln2))
+    # A nonpositive optimum cannot justify allocating a positive-size filter.
     if log_factor <= 0:
         return FilterSize(0, 0)
     # Compare against the cap before multiplying by an arbitrarily large n.

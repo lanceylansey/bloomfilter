@@ -1,1 +1,1 @@
-"""Distributed Bloom join experiment scaffold here."""
+"""Dependency-free, two-site distributed Bloomjoin research prototype."""

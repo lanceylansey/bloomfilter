@@ -1,3 +1,4 @@
+"""Regression checks for sizing metadata."""
 from contextlib import closing
 import sqlite3
 import tempfile
@@ -10,7 +11,9 @@ from bloomjoin.worker import sizing_statistics
 
 
 class SizingMetadataTests(unittest.TestCase):
+    """Ensure remote width statistics match the serializer and are charged to the query."""
     def test_width_uses_wire_json_escaping_and_key_digits(self):
+        """Verify empty statistics and literal escaped-wire widths for difficult text."""
         rows = [(1, '"\\\n'), (12345, '\u00e9\U0001f600')]
         with closing(sqlite3.connect(":memory:")) as db:
             db.execute("CREATE TABLE records (join_key INTEGER PRIMARY KEY, payload TEXT)")
@@ -22,6 +25,7 @@ class SizingMetadataTests(unittest.TestCase):
             self.assertEqual(sizing_statistics(db), {"row_count": 2, "mean_row_bytes": expected})
 
     def test_metadata_bytes_are_included_once_and_results_stay_exact(self):
+        """Compare baseline and metadata-enabled queries using independently counted metadata frames."""
         for rows, overlap in ((0, 0), (10, 0), (10, 0.5), (10, 1)):
             with self.subTest(rows=rows, overlap=overlap), tempfile.TemporaryDirectory() as tmp:
                 local, remote = generate(tmp, rows, overlap, 8, 42)
@@ -47,6 +51,7 @@ class SizingMetadataTests(unittest.TestCase):
                     self.assertGreater(sizing["bit_count"], 0)
 
     def test_empty_local_table_has_no_filter_proposal(self):
+        """Avoid proposing a filter for an empty local table despite nonempty remote data."""
         with tempfile.TemporaryDirectory() as tmp:
             local, remote = generate(tmp, 10, 0, 8, 42)
             with closing(sqlite3.connect(local)) as db:
