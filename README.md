@@ -27,6 +27,56 @@ python -m bloomjoin.benchmark --suite --output results/proposal-suite.json
 python -m unittest discover -s tests -v
 ```
 
+## CSV export and repeated scenarios
+
+Every benchmark now saves three files: the complete JSON report, a CSV with one
+row per measured query, and a `.summary.csv` with one row per scenario/method.
+The terminal shows a compact table by default. To print the full JSON instead,
+pass `--print-json`; the saved JSON remains available either way.
+
+```powershell
+# Five repeats of every method on one selected workload.
+python -m bloomjoin.benchmark --compare --rows 100000 --overlap 0.1 --repeats 5 --warmups 1 --output results/comparison.json --csv results/comparison.csv
+
+# Repeat 16 scenarios, checkpointing CSV and JSON after each completed scenario.
+python -m bloomjoin.scenarios --repeats 5 --warmups 1
+```
+
+The repeated-study command covers the proposal's nine cases, simulated bandwidth
+at 10/25/100 Mbps, high overlap and wide payloads on a simulated 10 Mbps link,
+and two additional seeds (7 and 99). All four methods use five measured repeats
+and one excluded, verified warmup by default: **320 measured queries and 64
+warmups**. The million-row case runs last. Scenarios run sequentially to avoid
+competing benchmark workloads; each query still uses a fresh remote process.
+
+`python -m bloomjoin.scenarios` creates a fresh timestamped folder under
+`results/scenarios/`. Pass `--output-dir results/my-study` to select a different
+new folder. An existing folder is rejected to prevent mixing studies. Files are:
+
+- `plan.json`: every scenario's settings and the repeat/warmup counts.
+- `01-...json` through `16-...json`: individual scenario reports.
+- `study.json`: combined report with completion status and scenario counts.
+- `runs.csv`: every measured run, including configuration, seed, network setting,
+  timings, byte/row counters, filter dimensions and SQL-verification status.
+- `runs.summary.csv`: per-scenario/method means, medians, extrema, sample standard
+  deviations, mean bytes, byte reduction and speedup relative to that case's full
+  transfer. Different seeds/network settings are kept separate.
+
+CSV columns use seconds, bytes and fractions, not formatted percentages. For
+example, `0.85` in `byte_reduction_fraction` means 85% fewer bytes. Empty cells
+mean missing/not applicable: unlimited bandwidth is blank, and an observed zero
+false-positive rate remains numeric zero. A filtered-only benchmark has blank
+relative savings/speedup because no full-transfer baseline was measured.
+
+Warmups never enter either CSV. If a later scenario fails, completed scenarios
+remain saved and `study.json` remains labeled `running`; it does not claim the
+whole study completed. Simulated networks are labeled explicitly. A study can
+take several minutes, especially with the million-row workload.
+
+The [completed repeated study](docs/repeated-study.md) includes all 320 measured
+runs, 64 summary rows, the scenario plan and an interpretation of faster and
+slower cases. The CSV and raw JSON files are archived with that report.
+
 ## Commands and options
 
 There are two experiment commands:
@@ -55,6 +105,8 @@ JSON report; they are not additional commands or options.
 | `--collect-sizing` | Also exchange remote sizing statistics for `full` or `fixed` | Off; single-query command only |
 | `--data-dir data` | Where the single-query command creates the two databases | `data`; single-query command only |
 | `--output results/run.json` | File in which to save the JSON report | Single query: `results/baseline.json`; benchmark: `results/benchmark.json` |
+| `--csv results/runs.csv` | Per-run CSV path; also writes `runs.summary.csv` | Benchmark only; defaults to the JSON basename with `.csv` |
+| `--print-json` | Print full JSON instead of the compact terminal table | Benchmark only; off by default |
 | `--help` | Print available command-line options | Both commands |
 
 `--compare` and `--suite` select methods themselves, so `--strategy` does not
@@ -123,7 +175,7 @@ The [simulated-bandwidth evaluation](docs/bandwidth-evaluation.md) compares
 
 ## Measurements and interpretation
 
-The JSON report groups the settings under `configuration`, software versions
+The saved JSON report groups the settings under `configuration`, software versions
 under `environment`, and measurement rules under `measurement`. In a comparison,
 `methods` contains each method's individual `runs` and summaries. A single-method
 benchmark places `runs` and its summaries directly in the report instead.

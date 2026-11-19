@@ -9,6 +9,7 @@ from pathlib import Path
 from .data import generate
 from .experiment import run, STRATEGIES
 from .protocol import validate_bandwidth, network_description
+from .reporting import export_csv, format_summary
 
 
 TIMING_METRICS = ("query_seconds", "filter_build_seconds")
@@ -71,7 +72,7 @@ def benchmark(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warm
 
 
 def compare(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warmups=1,
-            selectivity=0.0, *, bandwidth_mbps=None):
+            selectivity=0.0, *, bandwidth_mbps=None, progress=None):
     """Compare all four methods on one dataset, rotating order each round."""
     if repeats < 1 or warmups < 0:
         raise ValueError("repeats must be positive and warmups must be nonnegative")
@@ -87,6 +88,9 @@ def compare(rows=1000, overlap=0.1, payload_bytes=32, seed=42, repeats=3, warmup
                               bandwidth_mbps=bandwidth_mbps)
                 if metrics.get("verified") is not True:
                     raise AssertionError("Cannot benchmark an unverified result")
+                # Notifications happen after the measured/verified query, outside its timer.
+                if progress is not None:
+                    progress(strategy, index + 1, index < warmups, metrics)
                 if index >= warmups:
                     measured[strategy].append({"repeat": index - warmups + 1, **metrics})
     # Use full-transfer means as the common denominator for every method.
@@ -153,7 +157,15 @@ def main():
     modes.add_argument("--suite", action="store_true", help="Run the proposal's one-factor-at-a-time sweep")
     parser.add_argument("--selectivity-estimate", type=float, default=0.0)
     parser.add_argument("--output", type=Path, default=Path("results/benchmark.json"))
+    parser.add_argument("--csv", type=Path,
+                        help="Per-run CSV path; a .summary.csv is also written (default: JSON basename.csv)")
+    parser.add_argument("--print-json", action="store_true", help="Print full JSON instead of a compact table")
     args = parser.parse_args()
+    csv_path = args.csv if args.csv is not None else args.output.with_suffix(".csv")
+    summary_path = csv_path.with_name(csv_path.stem + ".summary.csv")
+    # Reject colliding destinations before running an expensive experiment.
+    if len({p.resolve() for p in (args.output, csv_path, summary_path)}) != 3:
+        parser.error("JSON, CSV and summary CSV paths must be different")
     if args.suite:
         report = suite(args.seed, args.repeats, args.warmups, args.selectivity_estimate,
                        bandwidth_mbps=args.bandwidth_mbps)
@@ -168,7 +180,10 @@ def main():
     # Save individual runs as well as summaries so calculations can be inspected.
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(report, indent=2))
+    export_csv(report, csv_path)
+    print(json.dumps(report, indent=2) if args.print_json else format_summary(report))
+    if not args.print_json:
+        print(f"\nSaved JSON: {args.output}\nIndividual runs: {csv_path}\nSummary CSV: {summary_path}")
 
 
 if __name__ == "__main__":

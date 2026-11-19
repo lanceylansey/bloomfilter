@@ -151,6 +151,32 @@ completion, original row count and build time. No joined result travels back.
 - `main`: parse exclusive compare/suite switches or choose a single method;
   write the resulting JSON report and print it for command-line use.
 
+## CSV reports and scenario studies
+
+`reporting.report_rows` normalizes single-method benchmarks, comparisons and
+multi-scenario reports into flat raw rows and summaries. Each scenario/method
+gets its own statistics, with configuration, seed and network labels retained.
+Unverified or empty measured runs are rejected. Relative savings and speedup are
+computed only when a full-transfer baseline exists in that same scenario.
+
+`reporting._mean_if_present` preserves missing metrics in older reports instead
+of inventing measured zeros. `reporting.export_csv` uses Python's CSV writer and
+platform-safe newline handling for a per-query file and sibling summary file.
+`reporting.format_summary` renders the same verified data as a compact terminal
+table. Benchmark CLI `--print-json` retains the previous full-JSON stdout option;
+the full JSON file is always written, as are both CSVs.
+
+`scenarios.scenario_plan` defines 16 workloads covering the proposal, three
+simulated bandwidths, two additional seeds and two network tradeoff cases.
+`scenarios.run_scenarios` runs them sequentially, reports each verified query
+outside its timer, and checkpoints completed scenarios to JSON/CSV. The nested
+`progress` callback only displays completed timings. `scenarios.main` supplies
+five measured repeats, one excluded warmup and a fresh timestamped output folder.
+
+`test_reporting.py` verifies CSV quoting, zero versus missing values, independently
+calculated statistics, separate scenario baselines, no invented single-method
+baseline, SQL-verification enforcement and checkpoint retention after failure.
+
 ## Tests and what each assertion protects
 
 Every `test_*` function has a local docstring explaining its individual contract.

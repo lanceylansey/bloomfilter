@@ -1,0 +1,134 @@
+{
+  "cases": [
+    {
+      "name": "baseline-10k",
+      "rows": 10000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "size-100k",
+      "rows": 100000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "overlap-0pct",
+      "rows": 10000,
+      "overlap": 0,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "overlap-1pct",
+      "rows": 10000,
+      "overlap": 0.01,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "overlap-50pct",
+      "rows": 10000,
+      "overlap": 0.5,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "overlap-100pct",
+      "rows": 10000,
+      "overlap": 1,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "payload-128",
+      "rows": 10000,
+      "overlap": 0.1,
+      "payload_bytes": 128,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "payload-512",
+      "rows": 10000,
+      "overlap": 0.1,
+      "payload_bytes": 512,
+      "seed": 42,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "network-10mbps",
+      "rows": 100000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": 10
+    },
+    {
+      "name": "network-25mbps",
+      "rows": 100000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": 25
+    },
+    {
+      "name": "network-100mbps",
+      "rows": 100000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": 100
+    },
+    {
+      "name": "network-high-overlap",
+      "rows": 100000,
+      "overlap": 0.8,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": 10
+    },
+    {
+      "name": "network-wide-payload",
+      "rows": 10000,
+      "overlap": 0.1,
+      "payload_bytes": 512,
+      "seed": 42,
+      "bandwidth_mbps": 10
+    },
+    {
+      "name": "seed-7",
+      "rows": 100000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 7,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "seed-99",
+      "rows": 100000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 99,
+      "bandwidth_mbps": null
+    },
+    {
+      "name": "size-1m",
+      "rows": 1000000,
+      "overlap": 0.1,
+      "payload_bytes": 32,
+      "seed": 42,
+      "bandwidth_mbps": null
+    }
+  ],
+  "repeats": 5,
+  "warmups": 1
+}
