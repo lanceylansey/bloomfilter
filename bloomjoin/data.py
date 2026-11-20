@@ -21,11 +21,13 @@ def generate(directory, rows=1000, overlap=0.1, payload_bytes=32, seed=42):
     directory.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)  # A private generator makes equal seeds reproducible.
     # Distinct ranges ensure that only the sampled local keys overlap.
-    shared = int(rows * overlap)  # Fractional matches are rounded down to whole rows.
+    shared = int(rows * overlap)  # num of how many keys match.
     local_keys = list(range(rows))
     # Sample shared keys without replacement, then fill with remote-only keys.
     remote_keys = rng.sample(local_keys, shared) + list(range(rows, 2 * rows - shared))
     paths = []
+
+    """ For each site: shuffle key order, create the file, drop and recreate the table, and insert the rows"""
     for name, keys in (("local", local_keys), ("remote", remote_keys)):
         rng.shuffle(keys)
         path = directory / (name + ".sqlite")
